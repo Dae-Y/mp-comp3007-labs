@@ -1,0 +1,17 @@
+# Project: COMP3007 Exercises
+# Author: Daehwan Yeo
+# Date: July 30, 2025
+# Purpose: Core libraries for data analysis and image processing exercises
+
+
+# Fundamental scientific computing library
+numpy
+
+# Plotting and visualization
+matplotlib
+
+# Image processing library (often used for opening/saving images)
+pillow
+
+# Advanced image processing algorithms
+scikit-image

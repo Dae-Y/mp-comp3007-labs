@@ -2,7 +2,7 @@
 # Author: Daehwan Yeo
 # Date: July 30, 2025
 # Purpose: Core libraries for data analysis and image processing exercises
-
+#   Run this once: pip install -r requirements.txt
 
 # Fundamental scientific computing library
 numpy
@@ -15,3 +15,12 @@ pillow
 
 # Advanced image processing algorithms
 scikit-image
+
+# OpenCV for computer vision tasks
+opencv-python
+
+# Operating system interaction (standard library, no installation needed)
+# os
+
+# Unix style pathname pattern expansion (standard library, no installation needed)
+# glob

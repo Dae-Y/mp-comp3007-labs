@@ -1,0 +1,24 @@
+Key lesson learned: I initially used the Shi-Tomasi corner detector, 
+but it misclassified a triangle as a circle.
+
+I asked about this Copilot:
+
+Why Shi-Tomasi Might Misclassify a Triangle as a Circle
+The Shi-Tomasi corner detector is designed to find strong corners based on eigenvalue analysis of the image gradient matrix. It’s excellent for tracking features (like in optical flow), but:
+- It doesn’t classify shapes—it just identifies points with high corner strength.
+- If the triangle is blurred, small, or symmetrical, Shi-Tomasi might pick up fewer distinct corners, making it resemble a circle in terms of detected features.
+- It’s sensitive to thresholds and image resolution. If the corners aren’t sharp enough, they might not be detected at all.
+
+Why Harris Might Work Better
+The Harris corner detector also uses gradient analysis but tends to be more sensitive to corner intensity and can pick up sharper features in geometric shapes like triangles. It’s often more robust in edge-heavy or high-contrast images.
+
+Can You Modify Shi-Tomasi to Work Better?
+Yes, you can try a few things:
+- Adjust the quality level threshold: Lowering it might help detect weaker corners.
+- Preprocess the image: Use edge enhancement (e.g., sharpening filters) or increase contrast.
+- Resize or scale the image: Larger shapes with clearer edges tend to yield better corner detection.
+- Combine with contour detection: Use Shi-Tomasi for corners, then apply cv2.findContours to help distinguish shapes.
+
+
+Conclusion:
+I tried, but it's hard to detect a triangle with shi-tomasi coner detector.

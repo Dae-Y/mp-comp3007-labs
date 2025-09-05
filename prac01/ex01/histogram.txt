@@ -1,0 +1,34 @@
+Processing file: prac01ex01img01.png
+  Dimensions → Height: 256 Width: 256 Channels: 3
+  Histogram (Blue): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Histogram (Green): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Histogram (Red): [[    0.     0.     0.     0.     0.     0.     0.     0.     0. 65536.]]
+  Saved resized image to: ex01/prac01ex01img01_half.png
+
+Processing file: prac01ex01img02.png
+  Dimensions → Height: 256 Width: 256 Channels: 3
+  Histogram (Blue): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Histogram (Green): [[    0.     0.     0.     0.     0.     0.     0.     0.     0. 65536.]]
+  Histogram (Red): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Saved resized image to: ex01/prac01ex01img02_half.png
+
+Processing file: prac01ex01img03.png
+  Dimensions → Height: 256 Width: 256 Channels: 3
+  Histogram (Blue): [[    0.     0.     0.     0.     0.     0.     0.     0.     0. 65536.]]
+  Histogram (Green): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Histogram (Red): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Saved resized image to: ex01/prac01ex01img03_half.png
+
+Processing file: prac01ex01img04.png
+  Dimensions → Height: 256 Width: 256 Channels: 3
+  Histogram (Blue): [[6375. 6724. 6561. 6690. 6452. 6637. 6618. 6408. 6652. 6419.]]
+  Histogram (Green): [[32768.     0.     0.     0.     0.     0.     0.     0.     0. 32768.]]
+  Histogram (Red): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Saved resized image to: ex01/prac01ex01img04_half.png
+
+Processing file: prac01ex01img05.png
+  Dimensions → Height: 256 Width: 256 Channels: 3
+  Histogram (Blue): [[6400. 6656. 6400. 6656. 6400. 6656. 6656. 6400. 6656. 6656.]]
+  Histogram (Green): [[6400. 6656. 6400. 6656. 6400. 6656. 6656. 6400. 6656. 6656.]]
+  Histogram (Red): [[65536.     0.     0.     0.     0.     0.     0.     0.     0.     0.]]
+  Saved resized image to: ex01/prac01ex01img05_half.png

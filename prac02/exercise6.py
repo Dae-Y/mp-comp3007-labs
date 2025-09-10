@@ -6,6 +6,7 @@ Exercise 6 - Morphology
 
 Morphological operations are fundamental tools in image processing, 
 particularly in the areas of noise reduction, image enhancement, and object recognition.
+
 Explore basic and advanced morphological operations using OpenCV.
 """
 import cv2

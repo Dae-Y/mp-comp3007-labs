@@ -1,340 +1,305 @@
-'''
+"""
 Machine perception prac5 - Machine Learning part 1
 Daehwan Yeo
 
 Exercise - Image Classification with SVM and Nearest Neighbor Methods
 
-To familiarize with different classification methods discussed in the lectures.
-In this practical, k-Nearest Neighbours (k-NN) and Support Vector Machines (SVM) classification methods will be used.
-'''
+- Uses OpenCV's ROW_SAMPLE layout.
+- Converts each 20x20 digit into a row vector of length 400 (raw pixels) or HOG features.
+- Evaluates kNN (k=1..7) and Linear C-SVM (C on log scale).
+- Saves figures and a text summary to results/result.txt
 
-# Importing some useful packages
-import numpy as np # Numpy library provides various useful functions and operators for scientific computing
-import cv2 as cv   # OpenCV is a key library that provides various useful functions for computer vision
-import os          # Optional
-import glob        # Optional
+results/result.txt — a full text log (error rates, confusion matrices)
+results/knn_0_1.png, results/knn_3_8.png, results/knn_all.png — kNN error curves (raw pixels)
+results/knn_hog_3_8.png, results/knn_hog_all.png — kNN error curves (HOG)
+results/svm_linear.png — SVM error vs C plot
+"""
+
+import os
 import sys
-from matplotlib import pyplot as plt
+import cv2
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+from contextlib import redirect_stdout
 
-# --- Load image ---
-digits = cv.imread("digits.png")
-if digits is None:
-    print("Error: Could not load the image 'digits.png'. Please ensure it's in the same directory.")
-    sys.exit(1)
+# -----------------------------
+# Utilities
+# -----------------------------
+RESULT_DIR = "results"
+os.makedirs(RESULT_DIR, exist_ok=True)
+RESULT_TXT = os.path.join(RESULT_DIR, "result.txt")
 
-gray = cv.cvtColor(digits, cv.COLOR_BGR2GRAY)
-height, width = gray.shape
-print("The image height is: ", height)
-print("The image width is: ", width)
+def save_fig(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    plt.savefig(path, bbox_inches="tight", pad_inches=0.1)
+    print(f"[Saved] {path}")
+    plt.close()
 
-# Split into 50x100 = 5000 cells
-cells = [np.hsplit(row, 100) for row in np.vsplit(gray, 50)]
-x = np.array(cells)  # (50, 100, 20, 20)
-
-# Flatten to (5000, 400)
-train_features = x.reshape(-1, 400).astype(np.float32)
-
-# Labels (0-9 repeated 500 times each)
-k = np.arange(10, dtype=np.int32)
-train_labels = np.repeat(k, 500)[:, np.newaxis].astype(np.float32)
-
-# ----------------------------------------------------------------
-# Save a sample grid of digits (first 100 digits)
-sample_grid = gray[:200, :2000]  # top-left corner (10x10 digits)
-plt.figure(figsize=(10, 2))
-plt.imshow(sample_grid, cmap="gray")
-plt.axis("off")
-plt.title("Sample digits from dataset")
-plt.savefig("sample_digits.png")
-plt.close()
-# ----------------------------------------------------------------
-
-def classify_and_evaluate(features, labels, class_1, class_2, split_ratio=0.5, save_prefix="output"):
+def confusion_matrix_np(true_labels, pred_labels, num_classes=10):
     """
-    Performs binary classification on two specified classes using k-NN and SVM.
-    
-    Args:
-        features (np.array): The feature matrix of all digits.
-        labels (np.array): The labels for all digits (Nx1 float32).
-        class_1 (int): The first digit class to be used for classification.
-        class_2 (int): The second digit class to be used for classification.
-        split_ratio (float): The ratio of data to use for training.
-        save_prefix (str): Prefix for saving plot images.
-        
+    true_labels, pred_labels: 1D int arrays of same length
+    returns: (num_classes x num_classes) matrix where [i,j] counts true=i, pred=j
+    """
+    cm = np.zeros((num_classes, num_classes), dtype=np.int32)
+    for t, p in zip(true_labels, pred_labels):
+        cm[int(t), int(p)] += 1
+    return cm
+
+def error_rate_from_preds(pred, true):
+    pred = np.asarray(pred).reshape(-1)
+    true = np.asarray(true).reshape(-1)
+    return 100.0 * (1.0 - np.mean(pred == true))
+
+def split_digits_image_to_train_test(gray):
+    """
+    digits.png has 50 rows x 100 cols of 20x20 cells = 5000 images (500 per class).
+    We split into train (first 50 cols) and test (last 50 cols).
     Returns:
-        None: Prints the classification results and error rates.
+        train (2500 x 400 float32), test (2500 x 400 float32),
+        train_labels (2500 x 1 int32), test_labels (2500 x 1 int32)
     """
-    # Convert classes to float32 to match labels dtype
-    c1 = np.float32(class_1)
-    c2 = np.float32(class_2)
+    # 50x100 grid of 20x20 patches
+    cells = [np.hsplit(r, 100) for r in np.vsplit(gray, 50)]
+    x = np.array(cells)  # shape (50, 100, 20, 20)
 
-    # Select data for the two specified classes
-    class_1_indices = np.where(labels.ravel() == c1)[0]
-    class_2_indices = np.where(labels.ravel() == c2)[0]
-    
-    # Combine the features and labels for the selected classes
-    binary_features = np.concatenate((features[class_1_indices], features[class_2_indices]), axis=0)
-    binary_labels = np.concatenate((labels[class_1_indices], labels[class_2_indices]), axis=0)
+    # ROW_SAMPLE layout: flatten each 20x20 to 400
+    train = x[:, :50].reshape(-1, 400).astype(np.float32)   # (2500, 400)
+    test  = x[:, 50:100].reshape(-1, 400).astype(np.float32)  # (2500, 400)
 
-    # Split the data into training and testing sets
-    split_index = int(len(binary_features) * split_ratio)
+    # labels: 0..9 repeated 250 times per class for train, same for test
+    train_labels = np.repeat(np.arange(10), 250).astype(np.int32).reshape(-1, 1)
+    test_labels = train_labels.copy()
 
-    train_data = np.concatenate((binary_features[:split_index], binary_features[500:500+split_index]), axis=0)
-    test_data  = np.concatenate((binary_features[split_index:500], binary_features[500+split_index:1000]), axis=0)
-    
-    train_labels_binary = np.concatenate((binary_labels[:split_index], binary_labels[500:500+split_index]), axis=0)
-    test_labels_binary  = np.concatenate((binary_labels[split_index:500], binary_labels[500+split_index:1000]), axis=0)
-    
-    print(f"\n--- Binary Classification: Digits {class_1} and {class_2} ---")
-    print(f"Number of training samples: {len(train_data)}")
-    print(f"Number of testing samples: {len(test_data)}")
+    return train, train_labels, test, test_labels
 
-    # --- k-NN Classifier ---
-    knn = cv.ml.KNearest_create()
-    knn.train(train_data, cv.ml.ROW_SAMPLE, train_labels_binary)
-    
-    # Set k=1 for the initial test
-    k_val = 1
-    ret, result_knn, neighbors, dist = knn.findNearest(test_data, k_val)
-    
-    # Calculate k-NN error
-    matches_knn = (result_knn == test_labels_binary)
-    correct_knn = int(np.count_nonzero(matches_knn))
-    incorrect_knn = len(test_data) - correct_knn
-    error_rate_knn = (incorrect_knn / len(test_data)) * 100.0
-    
-    print("\n[k-NN Classifier (k=1)]")
-    print(f"Incorrectly classified testing samples: {incorrect_knn}")
-    print(f"Testing error rate: {error_rate_knn:.2f}%")
-
-    # --- SVM Classifier ---
-    svm = cv.ml.SVM_create()
-    svm.setKernel(cv.ml.SVM_LINEAR)
-    svm.setType(cv.ml.SVM_C_SVC)
-    svm.setC(1.0)
-    svm.setTermCriteria((cv.TERM_CRITERIA_MAX_ITER | cv.TERM_CRITERIA_EPS, 100, 1e-8))
-    
-    svm.train(train_data, cv.ml.ROW_SAMPLE, train_labels_binary)
-    
-    # Test on testing data
-    ret, result_svm_test = svm.predict(test_data)
-    
-    # Calculate SVM test error
-    matches_svm_test = (result_svm_test == test_labels_binary)
-    correct_svm_test = int(np.count_nonzero(matches_svm_test))
-    incorrect_svm_test = len(test_data) - correct_svm_test
-    error_rate_svm_test = (incorrect_svm_test / len(test_data)) * 100.0
-    
-    # Test on training data
-    ret, result_svm_train = svm.predict(train_data)
-    
-    # Calculate SVM training error
-    matches_svm_train = (result_svm_train == train_labels_binary)
-    incorrect_svm_train = int(np.count_nonzero(~matches_svm_train))
-    error_rate_svm_train = (incorrect_svm_train / len(train_data)) * 100.0
-    
-    print("\n[SVM Classifier (C=1)]")
-    print(f"Incorrectly classified testing samples: {incorrect_svm_test}")
-    print(f"Testing error rate: {error_rate_svm_test:.2f}%")
-    print(f"Incorrectly classified training samples: {incorrect_svm_train}")
-    print(f"Training error rate: {error_rate_svm_train:.2f}%")
-
-    # --- Save some example results as PNG ---
-    # Show 10 test digits with true vs predicted labels (SVM)
-    fig, axes = plt.subplots(1, 10, figsize=(12, 2))
-    for idx, ax in enumerate(axes):
-        img = test_data[idx].reshape(20, 20)
-        ax.imshow(img, cmap="gray")
-        ax.axis("off")
-        ax.set_title(f"T:{int(test_labels_binary[idx,0])}\nP:{int(result_svm_test[idx,0])}")
-    plt.suptitle(f"SVM predictions for digits {class_1} vs {class_2}")
-    plt.savefig(f"{save_prefix}_svm_predictions.png")
-    plt.close()
-
-# --- Run classifiers ---
-classify_and_evaluate(train_features, train_labels, 0, 1, save_prefix="digits01")
-classify_and_evaluate(train_features, train_labels, 3, 8, save_prefix="digits38")
-
-def tune_parameters(features, labels):
+def filter_binary_classes(data, labels, a, b):
     """
-    Tunes the k and C parameters for k-NN and SVM on all digits.
-    
-    Args:
-        features (np.array): The feature matrix of all digits.
-        labels (np.array): The labels for all digits.
+    Keep only class a and b from (data, labels). Returns filtered (data, labels).
+    Labels remain original values a or b.
     """
-    # Split the data for multi-category classification (all digits)
-    train_data_all = features[2500:]
-    test_data_all  = features[:2500]
-    train_labels_all = labels[2500:]
-    test_labels_all  = labels[:2500]
-    
-    # --- k-NN: Varying k ---
-    k_values = range(1, 8)
-    knn_errors = []
-    
-    knn = cv.ml.KNearest_create()
-    knn.train(train_data_all, cv.ml.ROW_SAMPLE, train_labels_all)
+    idx = np.where((labels.reshape(-1) == a) | (labels.reshape(-1) == b))[0]
+    return data[idx], labels[idx]
 
-    print("\n--- Tuning k for k-NN (Multi-category Classification) ---")
-    for k_val in k_values:
-        ret, result, neighbors, dist = knn.findNearest(test_data_all, k_val)
-        matches = (result == test_labels_all)
-        incorrect = int(np.count_nonzero(~matches))
-        error_rate = (incorrect / len(test_data_all)) * 100.0
-        knn_errors.append(error_rate)
-        print(f"k = {k_val}: Error Rate = {error_rate:.2f}%")
+def calculate_error_rate(train_data, train_labels, test_data, test_labels, k_values):
+    """
+    Train kNN on train_data and print error rate for each k in k_values.
+    Labels must be (N,1) int32 for OpenCV ml.
+    """
+    # Create and train once (OpenCV's kNN ignores k at training; k is used in findNearest)
+    knn = cv2.ml.KNearest_create()
+    knn.train(train_data, cv2.ml.ROW_SAMPLE, train_labels)
 
-    # Plotting the results
+    for k in k_values:
+        _, result, _, _ = knn.findNearest(test_data, k=k)
+        err = error_rate_from_preds(result, test_labels)
+        print(f"kNN | k={k} | Test error rate = {err:.2f}%")
+
+def plot_knn_curve(k_list, errors, title, save_path):
     plt.figure()
-    plt.plot(list(k_values), knn_errors, marker='o')
-    plt.title('k-NN Error Rate vs. k')
-    plt.xlabel('k')
-    plt.ylabel('Error Rate (%)')
-    plt.grid(True)
-    plt.savefig('knn_error_vs_k.png')
-    plt.close()
+    plt.plot(k_list, errors, marker="o")
+    plt.xticks(k_list)
+    plt.xlabel("k")
+    plt.ylabel("Error rate (%)")
+    plt.title(title)
+    plt.grid(alpha=0.3)
+    save_fig(save_path)
 
-    # --- SVM: Varying C ---
-    c_values = np.logspace(-3, 3, 7)  # from 1e-3 to 1e3
-    svm_errors = []
+def compute_knn_errors(train_data, train_labels, test_data, test_labels, k_values):
+    knn = cv2.ml.KNearest_create()
+    knn.train(train_data, cv2.ml.ROW_SAMPLE, train_labels)
+    errs = []
+    for k in k_values:
+        _, result, _, _ = knn.findNearest(test_data, k=k)
+        err = error_rate_from_preds(result, test_labels)
+        errs.append(err)
+        print(f"kNN | k={k} | Test error rate = {err:.2f}%")
+    return errs
 
-    print("\n--- Tuning C for SVM (Multi-category Classification) ---")
-    for C in c_values:
-        svm = cv.ml.SVM_create()
-        svm.setKernel(cv.ml.SVM_LINEAR)
-        svm.setType(cv.ml.SVM_C_SVC)
+# -----------------------------
+# HOG features (optional exercise 2)
+# -----------------------------
+def build_hog():
+    # HOG over 20x20 window. Blocks 10x10, stride 5x5, cells 10x10, 9 bins.
+    return cv2.HOGDescriptor(_winSize=(20, 20),
+                             _blockSize=(10, 10),
+                             _blockStride=(5, 5),
+                             _cellSize=(10, 10),
+                             _nbins=9)
+
+def extract_hog_features_from_split(gray):
+    """
+    From the digits image, produce HOG features for train/test.
+    Returns: train (2500 x D), train_labels (2500 x 1),
+             test  (2500 x D), test_labels  (2500 x 1)
+    """
+    hog = build_hog()
+    cells = [np.hsplit(r, 100) for r in np.vsplit(gray, 50)]  # (50,100,20,20)
+
+    def hog_map(cell_rows):
+        feats = []
+        for row in cell_rows:
+            for patch in row:
+                # HOG expects 8-bit single-channel image of size winSize
+                f = hog.compute(patch.astype(np.uint8))  # (D,1)
+                feats.append(f.reshape(-1))
+        return np.array(feats, dtype=np.float32)
+
+    # train (first 50 columns), test (last 50)
+    train_feats = hog_map([r[:50] for r in cells])
+    test_feats  = hog_map([r[50:100] for r in cells])
+
+    train_labels = np.repeat(np.arange(10), 250).astype(np.int32).reshape(-1, 1)
+    test_labels  = train_labels.copy()
+
+    return train_feats, train_labels, test_feats, test_labels
+
+# -----------------------------
+# SVM (Exercise 3)
+# -----------------------------
+def run_svm_linear(train, train_labels, test, test_labels, C_values, num_classes=10):
+    """
+    Train Linear C-SVM for each C in C_values, report train/test error and confusion matrices.
+    Returns (C_values, test_errors) for plotting.
+    """
+    test_errors = []
+
+    for C in C_values:
+        svm = cv2.ml.SVM_create()
+        svm.setKernel(cv2.ml.SVM_LINEAR)
+        svm.setType(cv2.ml.SVM_C_SVC)
         svm.setC(float(C))
-        svm.setTermCriteria((cv.TERM_CRITERIA_MAX_ITER | cv.TERM_CRITERIA_EPS, 100, 1e-8))
-        
-        svm.train(train_data_all, cv.ml.ROW_SAMPLE, train_labels_all)
-        
-        ret, result = svm.predict(test_data_all)
-        matches = (result == test_labels_all)
-        incorrect = int(np.count_nonzero(~matches))
-        error_rate = (incorrect / len(test_data_all)) * 100.0
-        svm_errors.append(error_rate)
-        print(f"C = {C:.3f}: Error Rate = {error_rate:.2f}%")
+        # Termination: max 100 iters or eps
+        svm.setTermCriteria((cv2.TERM_CRITERIA_MAX_ITER + cv2.TERM_CRITERIA_EPS, 100, 1e-8))
 
-    # Plotting the results
+        svm.train(train, cv2.ml.ROW_SAMPLE, train_labels)
+
+        train_pred = svm.predict(train)[1].astype(np.int32).reshape(-1)
+        test_pred  = svm.predict(test)[1].astype(np.int32).reshape(-1)
+
+        tr_err = error_rate_from_preds(train_pred, train_labels.reshape(-1))
+        te_err = error_rate_from_preds(test_pred, test_labels.reshape(-1))
+        test_errors.append(te_err)
+
+        tr_cm = confusion_matrix_np(train_labels.reshape(-1), train_pred, num_classes=num_classes)
+        te_cm = confusion_matrix_np(test_labels.reshape(-1), test_pred, num_classes=num_classes)
+
+        print(f"SVM Linear | C={C:.5g} | Train err={tr_err:.2f}% | Test err={te_err:.2f}%")
+        print("Train Confusion Matrix:\n", tr_cm)
+        print("Test  Confusion Matrix:\n", te_cm)
+        print("-" * 60)
+
+    return list(C_values), test_errors
+
+def plot_svm_curve(C_values, test_errors, title, save_path):
     plt.figure()
-    plt.plot(c_values, svm_errors, marker='o')
-    plt.xscale('log')
-    plt.title('SVM Error Rate vs. C')
-    plt.xlabel('C (log scale)')
-    plt.ylabel('Error Rate (%)')
-    plt.grid(True)
-    plt.savefig('svm_error_vs_c.png')
-    plt.close()
+    plt.semilogx(C_values, test_errors, marker="o")
+    plt.xlabel("C (log scale)")
+    plt.ylabel("Test error rate (%)")
+    plt.title(title)
+    plt.grid(True, which="both", alpha=0.3)
+    save_fig(save_path)
 
-# Run the parameter tuning function on all digits
-tune_parameters(train_features, train_labels)
+# -----------------------------
+# Main Exercises
+# -----------------------------
+def exercise_knn_raw(gray):
+    print("\n=== Exercise 1: kNN on raw pixels (ROW_SAMPLE = 20x20 -> 400) ===")
+    train, train_labels, test, test_labels = split_digits_image_to_train_test(gray)
 
-# ======================================================================================================================
-# --- NEW SECTION: CLASSIFICATION WITH HOG FEATURES ---
-# ======================================================================================================================
+    # Binary 0 vs 1 (500 each -> 250 train + 250 test per digit)
+    print("\n[Binary] Digits 0 vs 1")
+    tr_01, ytr_01 = filter_binary_classes(train, train_labels, 0, 1)
+    te_01, yte_01 = filter_binary_classes(test,  test_labels,  0, 1)
+    k_values = list(range(1, 8))
+    errs_01 = compute_knn_errors(tr_01, ytr_01, te_01, yte_01, k_values)
+    plot_knn_curve(k_values, errs_01, "kNN Error (0 vs 1, raw pixels)", os.path.join(RESULT_DIR, "knn_0_1.png"))
 
-def classify_with_hog_features(features_2d, labels, class_1, class_2, save_prefix="hog"):
-    """
-    Extracts HOG features and performs binary classification for the two given classes.
-    
-    Args:
-        features_2d (np.array): The original 2D image data of shape (N, 20, 20).
-        labels (np.array): The labels for all digits (Nx1 float32).
-        class_1 (int): The first digit class to be used.
-        class_2 (int): The second digit class to be used.
-        save_prefix (str): Prefix for saving plot images.
-    """
-    print(f"\n--- Classification with HOG Features: Digits {class_1} and {class_2} ---")
-    
-    # Initialize the HOG descriptor for 20x20 images
-    hog = cv.HOGDescriptor(_winSize=(20, 20),
-                           _blockSize=(10, 10),
-                           _blockStride=(5, 5),
-                           _cellSize=(10, 10),
-                           _nbins=9)
-    
-    # Extract HOG features for all samples
-    hog_features_list = []
-    for i in range(features_2d.shape[0]):
-        # OpenCV expects a 2D uint8 image for HOG
-        img_u8 = features_2d[i, :, :].astype(np.uint8)
-        hog_feature = hog.compute(img_u8)  # (num_features, 1)
-        hog_features_list.append(hog_feature)
-    
-    hog_features = np.array(hog_features_list).reshape(features_2d.shape[0], -1).astype(np.float32)
-    print(f"Shape of HOG feature matrix: {hog_features.shape}")
+    # Binary 3 vs 8
+    print("\n[Binary] Digits 3 vs 8")
+    tr_38, ytr_38 = filter_binary_classes(train, train_labels, 3, 8)
+    te_38, yte_38 = filter_binary_classes(test,  test_labels,  3, 8)
+    errs_38 = compute_knn_errors(tr_38, ytr_38, te_38, yte_38, k_values)
+    plot_knn_curve(k_values, errs_38, "kNN Error (3 vs 8, raw pixels)", os.path.join(RESULT_DIR, "knn_3_8.png"))
 
-    # Select data for the two specified classes
-    class_1_indices = np.where(labels.ravel() == class_1)[0]
-    class_2_indices = np.where(labels.ravel() == class_2)[0]
-    
-    binary_hog_features = np.concatenate((hog_features[class_1_indices], hog_features[class_2_indices]), axis=0)
-    binary_labels = np.concatenate((labels[class_1_indices], labels[class_2_indices]), axis=0)
+    # All digits
+    print("\n[Multiclass] All digits 0..9")
+    errs_all = compute_knn_errors(train, train_labels, test, test_labels, k_values)
+    plot_knn_curve(k_values, errs_all, "kNN Error (All digits, raw pixels)", os.path.join(RESULT_DIR, "knn_all.png"))
 
-    # Split the HOG data into training and testing sets (50/50 split)
-    split_index = int(len(binary_hog_features) / 2)
-    
-    train_data_hog = np.concatenate((binary_hog_features[:split_index], binary_hog_features[500:500+split_index]), axis=0)
-    test_data_hog = np.concatenate((binary_hog_features[split_index:500], binary_hog_features[500+split_index:1000]), axis=0)
-    
-    train_labels_hog = np.concatenate((binary_labels[:split_index], binary_labels[500:500+split_index]), axis=0)
-    test_labels_hog = np.concatenate((binary_labels[split_index:500], binary_labels[500+split_index:1000]), axis=0)
+def exercise_knn_hog(gray):
+    print("\n=== Exercise 2: kNN with HOG features ===")
+    train, train_labels, test, test_labels = extract_hog_features_from_split(gray)
 
-    # --- k-NN Classifier with HOG ---
-    knn_hog = cv.ml.KNearest_create()
-    knn_hog.train(train_data_hog, cv.ml.ROW_SAMPLE, train_labels_hog)
-    
-    ret, result_knn_hog, neighbors, dist = knn_hog.findNearest(test_data_hog, k=1)
-    
-    matches_knn_hog = result_knn_hog == test_labels_hog
-    incorrect_knn_hog = int(np.count_nonzero(matches_knn_hog == False))
-    error_rate_knn_hog = (incorrect_knn_hog / len(test_data_hog)) * 100.0
-    
-    print("\n[k-NN Classifier (k=1) with HOG]")
-    print(f"Incorrectly classified testing samples: {incorrect_knn_hog}")
-    print(f"Testing error rate: {error_rate_knn_hog:.2f}%")
+    # Binary 3 vs 8
+    print("\n[Binary] Digits 3 vs 8 (HOG)")
+    tr_38, ytr_38 = filter_binary_classes(train, train_labels, 3, 8)
+    te_38, yte_38 = filter_binary_classes(test,  test_labels,  3, 8)
+    k_values = list(range(1, 8))
+    errs_38 = compute_knn_errors(tr_38, ytr_38, te_38, yte_38, k_values)
+    plot_knn_curve(k_values, errs_38, "kNN Error (3 vs 8, HOG)", os.path.join(RESULT_DIR, "knn_hog_3_8.png"))
 
-    # --- SVM Classifier with HOG ---
-    svm_hog = cv.ml.SVM_create()
-    svm_hog.setKernel(cv.ml.SVM_LINEAR)
-    svm_hog.setType(cv.ml.SVM_C_SVC)
-    svm_hog.setC(1.0)
-    svm_hog.setTermCriteria((cv.TERM_CRITERIA_MAX_ITER | cv.TERM_CRITERIA_EPS, 100, 1e-8))
-    
-    svm_hog.train(train_data_hog, cv.ml.ROW_SAMPLE, train_labels_hog)
-    
-    ret, result_svm_hog = svm_hog.predict(test_data_hog)
-    
-    matches_svm_hog = result_svm_hog == test_labels_hog
-    incorrect_svm_hog = int(np.count_nonzero(matches_svm_hog == False))
-    error_rate_svm_hog = (incorrect_svm_hog / len(test_data_hog)) * 100.0
-    
-    print("\n[SVM Classifier (C=1) with HOG]")
-    print(f"Incorrectly classified testing samples: {incorrect_svm_hog}")
-    print(f"Testing error rate: {error_rate_svm_hog:.2f}%")
+    # All digits
+    print("\n[Multiclass] All digits 0..9 (HOG)")
+    errs_all = compute_knn_errors(train, train_labels, test, test_labels, k_values)
+    plot_knn_curve(k_values, errs_all, "kNN Error (All digits, HOG)", os.path.join(RESULT_DIR, "knn_hog_all.png"))
 
-    # --- Save some HOG test results ---
-    fig, axes = plt.subplots(1, 10, figsize=(12, 2))
-    for idx, ax in enumerate(axes):
-        # We can't back-project HOG easily, so just show grayscale original
-        
-        # Get the original index for the test data
-        test_labels_flat = test_labels_hog.ravel()
-        original_indices = np.where(labels.ravel() == class_1)[0].tolist() + np.where(labels.ravel() == class_2)[0].tolist()
-        
-        # The test_data_hog is the second half of the concatenated binary data
-        original_idx = 500 + idx
-        if int(test_labels_flat[idx]) == class_2:
-            original_idx = 500 + 500 + idx
-            
-        img_original = features_2d[original_indices[original_idx]]
-        
-        ax.imshow(img_original, cmap="gray")
-        ax.axis("off")
-        ax.set_title(f"T:{int(test_labels_hog[idx,0])}\nP:{int(result_svm_hog[idx,0])}")
-    plt.suptitle(f"HOG+SVM predictions for digits {class_1} vs {class_2}")
-    plt.savefig(f"{save_prefix}_svm_predictions.png")
-    plt.close()
+def exercise_svm(gray):
+    print("\n=== Exercise 3: Linear SVM (C-SVM) ===")
+    train, train_labels, test, test_labels = split_digits_image_to_train_test(gray)
+    # Normalize pixel values to [0,1] for SVM stability
+    train = (train / 255.0).astype(np.float32)
+    test  = (test  / 255.0).astype(np.float32)
 
-classify_with_hog_features(x.reshape(5000, 20, 20), train_labels, 3, 8, save_prefix="hog38")
+    # C from very small to large (log scale)
+    C_values = np.logspace(-3, 2, num=6)  # 0.001 ... 100
+    C_list, test_errs = run_svm_linear(train, train_labels, test, test_labels, C_values, num_classes=10)
+    plot_svm_curve(C_list, test_errs, "Linear SVM Test Error vs C", os.path.join(RESULT_DIR, "svm_linear.png"))
+
+# -----------------------------
+# Entry point
+# -----------------------------
+def main():
+    img_path = "digits.png"
+    if not os.path.exists(img_path):
+        raise FileNotFoundError(f"Cannot find {img_path} in {os.getcwd()}")
+    img = cv2.imread(img_path)
+    if img is None:
+        raise RuntimeError("cv2.imread failed to load digits.png")
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Capture all prints to a file AND show on console
+    class Tee:
+        def __init__(self, *files):
+            self.files = files
+        def write(self, obj):
+            for f in self.files:
+                f.write(obj)
+                f.flush()
+        def flush(self):
+            for f in self.files:
+                f.flush()
+
+    with open(RESULT_TXT, "w", encoding="utf-8") as f:
+        tee = Tee(sys.stdout, f)
+        with redirect_stdout(tee):
+            print("=== Machine perception prac5: Results ===")
+            print(f"Working directory: {os.getcwd()}")
+            print(f"digits.png shape: {img.shape}")
+            print("-" * 60)
+
+            # kNN raw pixels
+            exercise_knn_raw(gray)
+            print("-" * 60)
+
+            # kNN HOG features (optional, but part of the practical brief)
+            exercise_knn_hog(gray)
+            print("-" * 60)
+
+            # SVM (Linear C-SVM)
+            exercise_svm(gray)
+            print("-" * 60)
+            print(f"All results & figures saved under: {RESULT_DIR}")
+
+if __name__ == "__main__":
+    main()

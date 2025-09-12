@@ -1,0 +1,209 @@
+=== Machine perception prac5: Results ===
+Working directory: /home/19448288/Documents/comp3007/prac05
+digits.png shape: (1000, 2000, 3)
+------------------------------------------------------------
+
+=== Exercise 1: kNN on raw pixels (ROW_SAMPLE = 20x20 -> 400) ===
+
+[Binary] Digits 0 vs 1
+kNN | k=1 | Test error rate = 0.00%
+kNN | k=2 | Test error rate = 0.00%
+kNN | k=3 | Test error rate = 0.00%
+kNN | k=4 | Test error rate = 0.00%
+kNN | k=5 | Test error rate = 0.00%
+kNN | k=6 | Test error rate = 0.00%
+kNN | k=7 | Test error rate = 0.00%
+[Saved] results/knn_0_1.png
+
+[Binary] Digits 3 vs 8
+kNN | k=1 | Test error rate = 2.80%
+kNN | k=2 | Test error rate = 5.40%
+kNN | k=3 | Test error rate = 3.40%
+kNN | k=4 | Test error rate = 4.40%
+kNN | k=5 | Test error rate = 3.40%
+kNN | k=6 | Test error rate = 4.40%
+kNN | k=7 | Test error rate = 3.60%
+[Saved] results/knn_3_8.png
+
+[Multiclass] All digits 0..9
+kNN | k=1 | Test error rate = 8.00%
+kNN | k=2 | Test error rate = 8.76%
+kNN | k=3 | Test error rate = 8.36%
+kNN | k=4 | Test error rate = 8.08%
+kNN | k=5 | Test error rate = 8.24%
+kNN | k=6 | Test error rate = 8.44%
+kNN | k=7 | Test error rate = 8.56%
+[Saved] results/knn_all.png
+------------------------------------------------------------
+
+=== Exercise 2: kNN with HOG features ===
+
+[Binary] Digits 3 vs 8 (HOG)
+kNN | k=1 | Test error rate = 2.40%
+kNN | k=2 | Test error rate = 3.00%
+kNN | k=3 | Test error rate = 2.40%
+kNN | k=4 | Test error rate = 2.80%
+kNN | k=5 | Test error rate = 2.40%
+kNN | k=6 | Test error rate = 2.60%
+kNN | k=7 | Test error rate = 2.40%
+[Saved] results/knn_hog_3_8.png
+
+[Multiclass] All digits 0..9 (HOG)
+kNN | k=1 | Test error rate = 5.92%
+kNN | k=2 | Test error rate = 6.04%
+kNN | k=3 | Test error rate = 5.92%
+kNN | k=4 | Test error rate = 5.88%
+kNN | k=5 | Test error rate = 6.00%
+kNN | k=6 | Test error rate = 6.00%
+kNN | k=7 | Test error rate = 5.92%
+[Saved] results/knn_hog_all.png
+------------------------------------------------------------
+
+=== Exercise 3: Linear SVM (C-SVM) ===
+SVM Linear | C=0.001 | Train err=9.08% | Test err=11.64%
+Train Confusion Matrix:
+ [[235   0   1   2   1   5   5   0   1   0]
+ [  0 245   0   1   1   2   0   1   0   0]
+ [  0  12 217   1   5   2   3   4   6   0]
+ [  0   5   3 218   0  14   1   2   4   3]
+ [  0   3   3   0 237   0   2   0   0   5]
+ [  3   3   2   7   1 223   4   0   6   1]
+ [  3   4   4   0   1   3 235   0   0   0]
+ [  1  15   2   0   6   1   0 220   0   5]
+ [  1  10   2   4   0   7   4   2 216   4]
+ [  0   3   2   5   3   2   0   7   1 227]]
+Test  Confusion Matrix:
+ [[233   0   1   1   1   4   4   4   2   0]
+ [  0 245   1   0   0   1   0   0   3   0]
+ [  7  13 200   6   5   1   5   2  10   1]
+ [  1   4   5 211   0  14   2   4   4   5]
+ [  0   4   3   0 219   0   5   1   1  17]
+ [  2   2   1  10   5 223   6   0   0   1]
+ [  2   5   4   0   6   6 227   0   0   0]
+ [  1   8   3   0   5   0   0 226   0   7]
+ [  0   6   2   6   2  20   2   0 203   9]
+ [  4   3   5   1   5   1   1   6   2 222]]
+------------------------------------------------------------
+SVM Linear | C=0.01 | Train err=6.76% | Test err=9.80%
+Train Confusion Matrix:
+ [[246   0   0   1   1   0   1   0   1   0]
+ [  0 246   0   0   1   2   0   1   0   0]
+ [  1   5 226   1   3   2   2   3   7   0]
+ [  0   2   3 221   0  14   1   2   4   3]
+ [  0   1   2   0 243   0   0   0   0   4]
+ [  1   2   1   6   2 228   4   0   6   0]
+ [  1   2   2   0   1   3 241   0   0   0]
+ [  1   6   2   0   5   0   0 230   0   6]
+ [  2   6   2   3   0   9   4   2 221   1]
+ [  2   2   1   4   3   1   0   7   1 229]]
+Test  Confusion Matrix:
+ [[240   0   1   1   1   2   2   2   1   0]
+ [  0 245   1   0   0   1   0   0   3   0]
+ [  7   5 211   4   4   0   7   2   9   1]
+ [  1   3   5 210   0  18   2   4   3   4]
+ [  0   2   4   0 225   0   3   1   1  14]
+ [  1   2   1   9   5 225   5   0   0   2]
+ [  2   1   5   0   3   4 235   0   0   0]
+ [  1   6   3   0   4   0   0 229   0   7]
+ [  0   5   2   5   2  19   2   0 205  10]
+ [  3   1   2   1   3   1   1   6   2 230]]
+------------------------------------------------------------
+SVM Linear | C=0.1 | Train err=3.20% | Test err=8.00%
+Train Confusion Matrix:
+ [[249   0   0   0   0   0   1   0   0   0]
+ [  0 249   1   0   0   0   0   0   0   0]
+ [  1   2 240   0   2   1   0   1   3   0]
+ [  0   1   1 238   0   5   0   1   2   2]
+ [  0   1   0   0 246   0   0   0   0   3]
+ [  1   0   1   5   1 236   3   0   3   0]
+ [  1   0   0   0   1   3 245   0   0   0]
+ [  1   1   1   0   4   0   0 240   0   3]
+ [  1   2   2   3   0   3   1   0 237   1]
+ [  1   1   0   2   1   1   0   4   0 240]]
+Test  Confusion Matrix:
+ [[246   0   1   0   1   0   2   0   0   0]
+ [  0 245   1   0   0   0   0   0   3   1]
+ [  6   1 226   1   4   0   5   1   5   1]
+ [  2   2   4 216   0  13   3   5   3   2]
+ [  2   2   3   0 222   0   3   0   2  16]
+ [  2   3   1  10   2 223   4   0   3   2]
+ [  2   1   3   0   2   4 238   0   0   0]
+ [  1   2   2   0   2   1   0 236   0   6]
+ [  0   2   3   5   1   8   3   0 225   3]
+ [  3   1   3   2   3   1   0  13   1 223]]
+------------------------------------------------------------
+SVM Linear | C=1 | Train err=0.12% | Test err=10.24%
+Train Confusion Matrix:
+ [[250   0   0   0   0   0   0   0   0   0]
+ [  0 250   0   0   0   0   0   0   0   0]
+ [  0   0 250   0   0   0   0   0   0   0]
+ [  0   0   0 249   0   0   0   0   1   0]
+ [  0   0   0   0 250   0   0   0   0   0]
+ [  0   0   0   0   0 249   0   0   1   0]
+ [  0   0   0   0   0   0 250   0   0   0]
+ [  0   0   0   0   0   0   0 250   0   0]
+ [  0   0   0   0   0   0   1   0 249   0]
+ [  0   0   0   0   0   0   0   0   0 250]]
+Test  Confusion Matrix:
+ [[247   0   1   0   1   0   1   0   0   0]
+ [  0 245   1   0   0   0   0   3   0   1]
+ [  6   2 222   4   4   1   3   2   5   1]
+ [  4   2   5 206   0  20   2   5   3   3]
+ [  1   1   4   0 224   0   2   1   1  16]
+ [  1   3   2  11   3 226   2   0   2   0]
+ [  3   0   8   1   2   3 233   0   0   0]
+ [  1   1   3   2   5   1   0 225   0  12]
+ [  0   4   7  14   2   9   5   1 204   4]
+ [  2   1   5   1   7   0   0  19   3 212]]
+------------------------------------------------------------
+SVM Linear | C=10 | Train err=0.12% | Test err=10.24%
+Train Confusion Matrix:
+ [[250   0   0   0   0   0   0   0   0   0]
+ [  0 250   0   0   0   0   0   0   0   0]
+ [  0   0 250   0   0   0   0   0   0   0]
+ [  0   0   0 249   0   0   0   0   1   0]
+ [  0   0   0   0 250   0   0   0   0   0]
+ [  0   0   0   0   0 249   0   0   1   0]
+ [  0   0   0   0   0   0 250   0   0   0]
+ [  0   0   0   0   0   0   0 250   0   0]
+ [  0   0   0   0   0   0   1   0 249   0]
+ [  0   0   0   0   0   0   0   0   0 250]]
+Test  Confusion Matrix:
+ [[247   0   1   0   1   0   1   0   0   0]
+ [  0 245   1   0   0   0   0   3   0   1]
+ [  6   2 222   4   4   1   3   2   5   1]
+ [  4   2   5 206   0  20   2   5   3   3]
+ [  1   1   4   0 224   0   2   1   1  16]
+ [  1   3   2  11   3 226   2   0   2   0]
+ [  3   0   8   1   2   3 233   0   0   0]
+ [  1   1   3   2   5   1   0 225   0  12]
+ [  0   4   7  14   2   9   5   1 204   4]
+ [  2   1   5   1   7   0   0  19   3 212]]
+------------------------------------------------------------
+SVM Linear | C=100 | Train err=0.12% | Test err=10.24%
+Train Confusion Matrix:
+ [[250   0   0   0   0   0   0   0   0   0]
+ [  0 250   0   0   0   0   0   0   0   0]
+ [  0   0 250   0   0   0   0   0   0   0]
+ [  0   0   0 249   0   0   0   0   1   0]
+ [  0   0   0   0 250   0   0   0   0   0]
+ [  0   0   0   0   0 249   0   0   1   0]
+ [  0   0   0   0   0   0 250   0   0   0]
+ [  0   0   0   0   0   0   0 250   0   0]
+ [  0   0   0   0   0   0   1   0 249   0]
+ [  0   0   0   0   0   0   0   0   0 250]]
+Test  Confusion Matrix:
+ [[247   0   1   0   1   0   1   0   0   0]
+ [  0 245   1   0   0   0   0   3   0   1]
+ [  6   2 222   4   4   1   3   2   5   1]
+ [  4   2   5 206   0  20   2   5   3   3]
+ [  1   1   4   0 224   0   2   1   1  16]
+ [  1   3   2  11   3 226   2   0   2   0]
+ [  3   0   8   1   2   3 233   0   0   0]
+ [  1   1   3   2   5   1   0 225   0  12]
+ [  0   4   7  14   2   9   5   1 204   4]
+ [  2   1   5   1   7   0   0  19   3 212]]
+------------------------------------------------------------
+[Saved] results/svm_linear.png
+------------------------------------------------------------
+All results & figures saved under: results

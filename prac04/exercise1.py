@@ -8,10 +8,10 @@ against transformations and its ability to capture distinctive features in image
 By comparing it with other methods like Harris corners, 
 you'll appreciate the nuances and strengths of each approach.
 '''
-import numpy as np # Numpy library provides various useful functions and operators for scientific computing
-import cv2 # openCV is a key library that provides various useful functions for computer vision
-import os # Honestly this one is a bit optional.
-import glob # again just optional
+import numpy as np
+import cv2
+import os
+import glob
 from matplotlib import pyplot as plt
 
 # Load the image

@@ -8,10 +8,10 @@ blob features from a gray-scale input image.
 The main goal is to separate individual characters 
 from the image and then extract several binary features from them.
 '''
-import numpy as np # Numpy library provides various useful functions and operators for scientific computing
-import cv2 # openCV is a key library that provides various useful functions for computer vision
-import os # Honestly this one is a bit optional.
-import glob # again just optional
+import numpy as np
+import cv2
+import os
+import glob
 from matplotlib import pyplot as plt
 
 # Complete the following functions for the Exercise
@@ -66,7 +66,6 @@ def extract_features(labels_im, stats):
         })
     return features
 
-# ──────────────────────────────────────────────────────────────────────────────
 # Main script
 
 # 1) Load & show original

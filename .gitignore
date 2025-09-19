@@ -1,0 +1,33 @@
+# Large dataset archive (exceeds GitHub's 100MB limit)
+prac06/data/cifar-10-python.tar.gz
+
+# Ignore extracted CIFAR-10 batch files
+prac06/data/
+
+# Ignore W&B logs and metadata
+prac06/wandb/
+
+# Ignore Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.ipynb_checkpoints/
+.env
+*.env
+
+# Ignore model checkpoints and outputs
+*.keras
+*.h5
+*.pt
+*.ckpt
+*.onnx
+*.log
+*.txt
+*.png
+
+# Ignore temporary files
+.DS_Store
+*.swp
+*.bak
+*.tmp
